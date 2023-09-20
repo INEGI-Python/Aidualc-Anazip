@@ -1,3 +1,6 @@
+print "-----------------------"
+print "RecorrerCruzado2Campos"
+print "-----------------------"
 import arcpy
 
 espaciodetrabajo_1=r"D:\A2023\RetomaLineaCosta\Test_ScriptLC_20Jul23\Geodatas\Capa_Prueba_14Sep.gdb\Datos"
