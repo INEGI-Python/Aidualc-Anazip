@@ -3,6 +3,10 @@ print "RecorrerCruzado2Campos"
 print "-----------------------"
 import arcpy
 
+
+# ESTE ARCHIVO LO MODIFIQUE YO, PAARA PROBAR EL COMANDO PULL 
+# Unicamente le modifique estas dos lineas agregandoles  comentarios
+
 espaciodetrabajo_1=r"D:\A2023\RetomaLineaCosta\Test_ScriptLC_20Jul23\Geodatas\Capa_Prueba_14Sep.gdb\Datos"
 fcPuntos_1="AngulosFinales"
 arcpy.env.workspace =espaciodetrabajo_1
