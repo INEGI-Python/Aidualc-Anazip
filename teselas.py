@@ -12,15 +12,14 @@ CRS = base.crs.to_string()
 base["ordenada"]=base.geometry.centroid.y
 base["absisa"]=base.geometry.centroid.x
 base["vtx"]=base.geometry.count_coordinates()
-base["ID"]=base.index
-base.set_index(    ["ordenada","absisa"],  inplace=True)
+cant=base.index[-1]+1
+base.set_index(["ordenada","absisa"],  inplace=True)
 base.sort_index(inplace=True,ascending=[False,True])
-
-val= list(base.to_dict().values() )
-
-base["ID"]=list(range(1,len(val)))
+print(base)
 eliminar = [i for i,v in base.iterrows() if v[3]!=5]
-res = base.drop(index=eliminar)
+res = base.drop(base.iat()).loc[:["ID","POBTOT","geometry","vtx"]]
+print(res)
+
 res.to_file("datosLimpios.shp")
 #print(res.iloc[0])
 
