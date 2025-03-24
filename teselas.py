@@ -1,7 +1,5 @@
 import numpy as np
 import geopandas as geo
-from matplotlib import colormaps
-import random
 import  shapely as sh
 from pyInegi.generalizacion import WebMAP
 from shapely.geometry import Point
@@ -32,26 +30,10 @@ def generate_hexagon(polygon):
         Hexagonos.extend(clonar_hexagono(hexagono=h,cant=_cant,X=-2*ancho,Y=0))
     return Hexagonos
 
-def ordenarGeo():
-    enumerar = base.index
-    base["ordenada"]=base.geometry.centroid.y
-    base["absisa"]=base.geometry.centroid.x
-    base["vtx"]=base.geometry.count_coordinates()
-    cant=enumerar[-1]+1
-    base.set_index(["ordenada","absisa"],  inplace=True)
-    base.sort_index(inplace=True,ascending=[False,True])
-    base["ID"]=enumerar
-    base.reset_index(drop=True,inplace=True)
-    base.set_index("ID",inplace=True)
-    base.where(base["vtx"]==5,inplace=True)
-    base.dropna(inplace=True)
-    base.reset_index() 
-    cont = int((base.loc[ : ,"vtx"].count())/2)
-
 
 dirAct = os.getcwd()
 print(dirAct)
-os.chdir(f"{dirAct}/Aidualc-Anazip")
+#os.chdir(f"{dirAct}/Aidualc-Anazip")
 base = geo.read_file("CPV_9_cdmex/CPV_9_cdmex.shp",columns=["ID","POBTOT","geometry"])
 base["vtx"]=base.geometry.count_coordinates()
 ancho = base.geometry.iloc[0].bounds[2] - base.geometry.iloc[0].bounds[0]
@@ -73,8 +55,13 @@ vecinos = base_ordenada.head(6)
 inicial=vecinos.dissolve(by="vtx")
 hexas = generate_hexagon(inicial.geometry.iloc[0])
 vecinos_hexagon = geo.GeoDataFrame(geometry=hexas, crs="EPSG:4326")
+lineas=vecinos_hexagon.boundary.union_all()
+lineasDF = geo.GeoDataFrame(geometry=[lineas],crs="EPSG:4326")
+print(lineasDF)
+partidos = geo.overlay(base,lineasDF , how='intersection')
 
 
+partidos.to_file("salida/partidos.shp")
 vecinos_hexagon.to_file("salida/vecinos_hexagon.shp")
 vecinos.to_file("salida/vecinosDF.shp")
 unionDF.to_file("salida/unionDF.shp")
@@ -82,4 +69,4 @@ centroDF.to_file("salida/centroDF.shp")
 
 
 #print(res)
-WebMAP(datos=["salida/vecinosDF.shp","salida/vecinos_hexagon.shp","salida/centroDF.shp"],tipos=["POLYGON","POLYGON","POINT"],names=["Vecinos","hexagono","Centroide"],estilo=[dict(fillColor="#FF0000",color="black"),dict(stroke=True,fillColor="#0000FF",color="#000000",fillOpacity=0.5,weight=1),dict(fillColor="#00FF00",color="white")],web=1)
+WebMAP(datos=["salida/partidos.shp","salida/vecinos_hexagon.shp","salida/centroDF.shp"],tipos=["POLYGON","POLYGON","POINT"],names=["Vecinos","hexagono","Centroide"],estilo=[dict(fillColor="#FF0000",color="black"),dict(stroke=True,fillColor="#0000FF",color="#000000",fillOpacity=0.5,weight=1),dict(fillColor="#00FF00",color="white")],web=1)
