@@ -44,20 +44,20 @@ unirB = base.union_all().centroid
 centros = [unirB,sh.affinity.translate(unirB, xoff=ancho, yoff=0)]
 centroB = geo.GeoSeries(data=centros,crs="EPSG:4326")
 tmp = [base[base.intersects(centroB.iloc[i])].index[0] for i in range(2)]
-inicio=base.iloc[tmp]
-union = inicio.union_all()
+union =base.iloc[tmp].union_all()
+union.
 unionDF = geo.GeoDataFrame(geometry=[union], crs="EPSG:4326")
 centroDF = geo.GeoDataFrame(geometry=[union.centroid], crs="EPSG:4326")
 centro = centroDF["geometry"].iloc[0]
 base["distancia"] = base["geometry"].distance(centro)
 base_ordenada = base.sort_values(by="distancia")
 vecinos = base_ordenada.head(6)
-inicial=vecinos.dissolve(by="vtx")
-hexas = generate_hexagon(inicial.geometry.iloc[0])
-vecinos_hexagon = geo.GeoDataFrame(geometry=hexas, crs="EPSG:4326")
-miClip = vecinos_hexagon.boundary.clip(base)
+inicial = vecinos.dissolve(by="vtx")
+total_hexas = generate_hexagon(inicial.geometry.iloc[0])
+teselas_hexagon = geo.GeoDataFrame(geometry=total_hexas, crs="EPSG:4326")
+miClip = teselas_hexagon.boundary.clip(base)
 print(miClip.iloc[0])
-clipBase = base.clip_by_rect(*miClip.bounds)
+clipBase = base.clip_by_rect(*miClip.total_bounds)
 print(clipBase)
 #lineasDF = geo.GeoDataFrame(geometry=miClip.union_all() ,crs="EPSG:4326")
 #partidos = geo.overlay(base,lineasDF , how='intersection')
@@ -65,7 +65,7 @@ print(clipBase)
 miClip.to_file("salida/miClip.shp")
 
 #lineasDF.to_file("salida/lineasHexa.shp")
-vecinos_hexagon.to_file("salida/vecinos_hexagon.shp")
+teselas_hexagon.to_file("salida/teselas_hexagon.shp")
 vecinos.to_file("salida/vecinosDF.shp")
 unionDF.to_file("salida/unionDF.shp")
 centroDF.to_file("salida/centroDF.shp")
