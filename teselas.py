@@ -2,7 +2,7 @@ import numpy as np
 import geopandas as geo
 import  shapely as sh
 from pyInegi.generalizacion import WebMAP
-from shapely.geometry import Point
+from shapely.geometry import Point,Polygon,LineString
 import os
 
 def clonar_hexagono(**dire):
@@ -14,20 +14,21 @@ def clonar_hexagono(**dire):
         shifted_hexagons.append(shifted_hexagon)
     return shifted_hexagons
 
-def generate_hexagon(polygon):
+def generate_hexagon(polygon,ancho,alto):
     _cant=31
     centroid = polygon.centroid
     distances = [centroid.distance(Point(coord)) for coord in polygon.exterior.coords]
     distances.sort()
     coordHexa = [coord for coord in polygon.exterior.coords if centroid.distance(Point(coord)) not in distances[-4:]]
-    HexaBase = sh.Polygon(coordHexa)
+    print(coordHexa)
+    HexaBase = Polygon(coordHexa)
     tmp=[HexaBase]    
-    tmp.extend(clonar_hexagono(hexagono=HexaBase,cant=_cant,X=ancho,Y=2*alto))
-    tmp.extend(clonar_hexagono(hexagono=HexaBase,cant=_cant,X=-ancho,Y=-2*alto))
+    tmp.extend(clonar_hexagono(hexagono=HexaBase,cant=_cant,X=ancho,Y=float(2*alto)))
+    tmp.extend(clonar_hexagono(hexagono=HexaBase,cant=_cant,X=-ancho,Y=float(-2*alto)))
     Hexagonos=[t for t in tmp]
     for h in tmp:
-        Hexagonos.extend(clonar_hexagono(hexagono=h,cant=_cant,X=2*ancho,Y=0))
-        Hexagonos.extend(clonar_hexagono(hexagono=h,cant=_cant,X=-2*ancho,Y=0))
+        Hexagonos.extend(clonar_hexagono(hexagono=h,cant=_cant,X=float(2*ancho),Y=0))
+        Hexagonos.extend(clonar_hexagono(hexagono=h,cant=_cant,X=float(-2*ancho),Y=0))
     return Hexagonos
 
 
@@ -36,35 +37,39 @@ print(dirAct)
 #os.chdir(f"{dirAct}/Aidualc-Anazip")
 base = geo.read_file("CPV_9_cdmex/CPV_9_cdmex.shp",columns=["ID","POBTOT","geometry"])
 base["vtx"]=base.geometry.count_coordinates()
-ancho = base.geometry.iloc[0].bounds[2] - base.geometry.iloc[0].bounds[0]
-alto = base.geometry.iloc[0].bounds[3] - base.geometry.iloc[0].bounds[1]   
+ancho = float(base.geometry.iloc[0].bounds[2] - base.geometry.iloc[0].bounds[0])
+alto = float(base.geometry.iloc[0].bounds[3] - base.geometry.iloc[0].bounds[1])   
+base.to_crs(epsg=4326,inplace=True)
 CRS = base.crs.to_string()
 print(CRS)
 unirB = base.union_all().centroid
 centros = [unirB,sh.affinity.translate(unirB, xoff=ancho, yoff=0)]
-centroB = geo.GeoSeries(data=centros,crs="EPSG:4326")
+centroB = geo.GeoSeries(data=centros,crs=CRS)
 tmp = [base[base.intersects(centroB.iloc[i])].index[0] for i in range(2)]
 union =base.iloc[tmp].union_all()
-union.
-unionDF = geo.GeoDataFrame(geometry=[union], crs="EPSG:4326")
-centroDF = geo.GeoDataFrame(geometry=[union.centroid], crs="EPSG:4326")
+
+unionDF = geo.GeoDataFrame(geometry=[union],crs=CRS)
+centroDF = geo.GeoDataFrame(geometry=[union.centroid],crs=CRS)
+
 centro = centroDF["geometry"].iloc[0]
 base["distancia"] = base["geometry"].distance(centro)
+base.to_crs(epsg=4326,inplace=True)
 base_ordenada = base.sort_values(by="distancia")
 vecinos = base_ordenada.head(6)
 inicial = vecinos.dissolve(by="vtx")
-total_hexas = generate_hexagon(inicial.geometry.iloc[0])
-teselas_hexagon = geo.GeoDataFrame(geometry=total_hexas, crs="EPSG:4326")
+#inicial.set_precision(16)
+total_hexas = generate_hexagon(inicial.geometry.iloc[0],ancho,alto)
+teselas_hexagon = geo.GeoDataFrame(geometry=total_hexas,crs=CRS)
 miClip = teselas_hexagon.boundary.clip(base)
-print(miClip.iloc[0])
-clipBase = base.clip_by_rect(*miClip.total_bounds)
-print(clipBase)
+miClipDF = geo.GeoDataFrame(geometry=[miClip.iloc[543]],crs=CRS)
+vecinoClip=vecinos.clip(miClipDF)
+
 #lineasDF = geo.GeoDataFrame(geometry=miClip.union_all() ,crs="EPSG:4326")
 #partidos = geo.overlay(base,lineasDF , how='intersection')
 
 miClip.to_file("salida/miClip.shp")
 
-#lineasDF.to_file("salida/lineasHexa.shp")
+vecinoClip.to_file("salida/vecinosClip.shp")
 teselas_hexagon.to_file("salida/teselas_hexagon.shp")
 vecinos.to_file("salida/vecinosDF.shp")
 unionDF.to_file("salida/unionDF.shp")
@@ -72,4 +77,4 @@ centroDF.to_file("salida/centroDF.shp")
 
 
 #print(res)
-WebMAP(datos=["salida/vecinosDF.shp","salida/vecinos_hexagon.shp","salida/centroDF.shp"],tipos=["POLYGON","POLYGON","POINT"],names=["Vecinos","hexagono","Centroide"],estilo=[dict(fillColor="#FF0000",color="black"),dict(stroke=True,fillColor="#0000FF",color="#000000",fillOpacity=0.5,weight=1),dict(fillColor="#00FF00",color="white")],web=1)
+WebMAP(datos=["salida/vecinosClip.shp","salida/vecinos_hexagon.shp","salida/centroDF.shp","salida/miClip.shp"],tipos=["POLYGON","POLYGON","POINT","POLYGON"],names=["Vecinos","hexagono","Centroide","ClipBase"],estilo=[dict(fillColor="#FF0000",color="black"),dict(stroke=True,fillColor="#0000FF",color="#000000",fillOpacity=0.5,weight=1),dict(fillColor="#00FF00",color="white"),dict(fillColor="purple",color="red")],web=1)
