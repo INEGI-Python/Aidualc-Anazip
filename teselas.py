@@ -46,7 +46,20 @@ base.set_index("ID",inplace=True)
 CRS = base.crs.to_string()
 base["ancho"]=base.geometry.bounds.maxx-base.geometry.bounds.minx
 base["alto"]=base.geometry.bounds.maxy-base.geometry.bounds.miny
-#shp("base")
+shp("base")
+# Crear grupos de 6 elementos en forma de 2 columnas adyacentes y 3 renglones adyacentes
+grupos = []
+for i in range(0, cant - 2, 3):  # Iterar en pasos de 3 para los renglones
+    for j in range(0, cant - 1, 2):  # Iterar en pasos de 2 para las columnas
+        grupo = base.iloc[i:i+3, j:j+2]  # Seleccionar 3 renglones y 2 columnas
+        if len(grupo) == 6:  # Asegurarse de que el grupo tenga exactamente 6 elementos
+            grupos.append(grupo)
+
+# Crear una nueva capa con los grupos
+grupos_gdf = geo.GeoDataFrame(geometry=[g.unary_union for g in grupos], crs=CRS)
+shp("grupos_gdf")
+
+
 #base.set_index("ancho",inplace=True)
 #base.sort_index(inplace=True)
 unirB = base.union_all().centroid
