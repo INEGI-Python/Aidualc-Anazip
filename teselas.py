@@ -1,6 +1,8 @@
 import numpy as np
-import  shapely as sh
+from  shapely.affinity import translate 
 from pyInegi.generalizacion import WebMAP
+from shapely.geometry import Point,Polygon
+import geopandas as geo
 import os
 
 def clonar_hexagono(**dire):
@@ -8,7 +10,7 @@ def clonar_hexagono(**dire):
     for i in range(1, dire["cant"]+1):
         x_offset = dire["X"]*i
         y_offset =  dire["Y"]*i
-        shifted_hexagon = sh.affinity.translate(dire["hexagono"], xoff=x_offset, yoff=y_offset)
+        shifted_hexagon = translate(dire["hexagono"], xoff=x_offset, yoff=y_offset)
         shifted_hexagons.append(shifted_hexagon)
     return shifted_hexagons
 
@@ -29,8 +31,6 @@ def generate_hexagon(rectangulo,ancho,alto):
         Hexagonos.extend(clonar_hexagono(hexagono=h,cant=_cant,X=float(-2*ancho),Y=0))
     return Hexagonos
 
-from shapely.geometry import Point,Polygon
-import geopandas as geo
 
 def shp(_a):
     eval(f"{_a}.to_file('salida/{_a}.shp')")
