@@ -1,22 +1,20 @@
 import numpy as np
-from  shapely.affinity import translate 
+from  shapely.affinity import  translate
 from pyInegi.generalizacion import WebMAP
 from shapely.geometry import Point,Polygon
 import geopandas as geo
+import matplotlib.pyplot as plt
 import os
 
-def clonar_hexagono(**dire):
-    shifted_hexagons = []
-    for i in range(1, dire["cant"]+1):
-        x_offset = dire["X"]*i
-        y_offset =  dire["Y"]*i
-        shifted_hexagon = translate(dire["hexagono"], xoff=x_offset, yoff=y_offset)
-        shifted_hexagons.append(shifted_hexagon)
-    return shifted_hexagons
+def shp(_a):
+    eval(f"{_a}.to_file('salida/{_a}.shp')")
 
-def generate_hexagon(rectangulo,ancho,alto):
+def clonar_hexagono(**_d):
+    return  [translate(_d["hexagono"], xoff=_d["X"]*i, yoff=_d["Y"]*i) for i in range(1, _d["cant"]+1)]
+    
+def genHexa(rectangulo):
     centroide = rectangulo.centroid
-    distances =geo.GeoDataFrame( [{"data":centroide.distance(Point(coord)),"geometry":coord}  for coord in rectangulo.exterior.coords])
+    distances  = geo.GeoDataFrame( [{"data":centroide.distance(Point(coord)),"geometry":coord}  for coord in rectangulo.exterior.coords])
     coordHexa = [coord for coord in rectangulo.exterior.coords if centroide.distance(Point(coord)) not in distances[-4:]]
     return  Polygon(coordHexa)
 
@@ -32,32 +30,45 @@ def generate_hexagon(rectangulo,ancho,alto):
     return Hexagonos
 
 
-def shp(_a):
-    eval(f"{_a}.to_file('salida/{_a}.shp')")
-
-
 base = geo.read_file("CPV_9_cdmex/CPV_9_cdmex.shp",columns=["ID","POBTOT","geometry"])
 base = base.to_crs(6372)
 base["vtx"]=base.geometry.count_coordinates()
 base = base[base["vtx"] == 5]
 cant= int(base.count().ID)
 base["ID"]=base.index
-base.set_index("ID",inplace=True)
+base.sort_index(inplace=True)
 CRS = base.crs.to_string()
 base["ancho"]=base.geometry.bounds.maxx-base.geometry.bounds.minx
 base["alto"]=base.geometry.bounds.maxy-base.geometry.bounds.miny
-shp("base")
-# Crear grupos de 6 elementos en forma de 2 columnas adyacentes y 3 renglones adyacentes
-grupos = []
-for i in range(0, cant - 2, 3):  # Iterar en pasos de 3 para los renglones
-    for j in range(0, cant - 1, 2):  # Iterar en pasos de 2 para las columnas
-        grupo = base.iloc[i:i+3, j:j+2]  # Seleccionar 3 renglones y 2 columnas
-        if len(grupo) == 6:  # Asegurarse de que el grupo tenga exactamente 6 elementos
-            grupos.append(grupo)
+base["x"] = base.centroid.x
+base["y"] = base.centroid.y
+cenTmp= [Point(*p.xy) for p in base.centroid.geometry]
+centroides = geo.GeoDataFrame(geometry=cenTmp,crs=CRS)
+shp("centroides")
+base.plot()
 
-# Crear una nueva capa con los grupos
-grupos_gdf = geo.GeoDataFrame(geometry=[g.unary_union for g in grupos], crs=CRS)
-shp("grupos_gdf")
+base["grupo"] = (base.index // 6) + 1
+
+shp("base")
+exas=genHexa(Polygon(([0,0],[0,2],[0,4],[0,6],[2,6],[4,6],[4,4],[4,2],[4,0],[2,0])))
+hexagonos = geo.GeoDataFrame(geometry=[exas],crs=CRS)
+hexagonos.plot()
+plt.plot(hexagonos)
+plt.show()
+#exit()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #base.set_index("ancho",inplace=True)
@@ -69,17 +80,9 @@ shp("centroB")
 b = [int(base[base.intersects(centroB.iloc[0])].index[0])]
 b.append(int(base[base.intersects(centroB.iloc[1])].index[0]))
 print(b)
-centros = base[base["ID"] == b[0]]
+centros = base[base["ID"] == bó[0]]
 centros.append(base[base["ID"] == b[1]])
 print(centros)
-
-
-
-
-
-
-
-
 
 shp("centros")
 tmp = [int(base[base.intersects(centroB.iloc[i])].index[0]) for i in range(2)]
@@ -102,7 +105,7 @@ vecinos = base_ordenada.head(6)
 inicial = vecinos.dissolve(by="vtx")
 shp("vecinos")
 shp("inicial")
-total_hexas = generate_hexagon(inicial.geometry.iloc[0],ancho,alto)
+total_hexas = genHexa(inicial.geometry.iloc[0])   
 teselas_hexagon = geo.GeoDataFrame(geometry=total_hexas,crs=CRS)
 teselas_hexagon.sindex
 join_teselas = teselas_hexagon.sjoin(base ,how="inner", lsuffix='_caller', rsuffix='_other')
