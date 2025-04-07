@@ -22,7 +22,7 @@ def genHexa(rectangulo):
     return None
 
 
-def agrupaTeselas(base,centroMain):
+def agrupaTeselas(base,centroMain,CRS):
     _tmp=base.copy()
     Hexagonos=[]
     for cenM in centroMain:
@@ -118,7 +118,7 @@ def main(input):
     centroDF = geo.GeoDataFrame(geometry=centroMain,crs=CRS)
     shp([centroDF,"centroDF"])
 
-    HexagonosDF = agrupaTeselas(base,centroMain)
+    HexagonosDF = agrupaTeselas(base,centroMain,CRS)
     obtenerPobTot(base,HexagonosDF)
 
     WebMAP(datos=["salida/baseClip.shp","salida/HexagonosDF.shp","salida/centroDF.shp"],tipos=["POLYGON","POLYGON","POINT"],names=["Clip","Hexagonos","Centroide"],estilo=[dict(fillColor="#0000FF",color="black"),dict(fillColor="red",color="black"),dict(stroke=True,fillColor="#0000FF",color="#000000",fillOpacity=0.5,weight=1)],web=1)
