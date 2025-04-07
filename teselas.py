@@ -20,7 +20,61 @@ def genHexa(rectangulo):
         coordHexa = distances["geometry"].drop(ordenados.index).values
         return Polygon(coordHexa) if len(coordHexa) >= 6 else None
     return None
+
+
+def agrupaTeselas(base,centroMain):
+    _tmp=base.copy()
+    Hexagonos=[]
+    for cenM in centroMain:
+        base = _tmp.copy()
+        base["distancia"] = base["geometry"].distance(cenM)
+        base_ordenada = base.sort_values(by="distancia")
+        vecinos = base_ordenada.head(6)
+        inicial = vecinos.dissolve(by="vtx")
+        ancho = float(inicial.geometry.bounds.maxx-inicial.geometry.bounds.minx)
+        alto = float(inicial.geometry.bounds.maxy-inicial.geometry.bounds.miny)
+        inicial = inicial.buffer(ancho/-8)
+        #clones=clonar_poligonos(poligono=inicial.geometry.iloc[0],cant=23,X=ancho-30,Y=20)
+        #clones.extend(clonar_poligonos(poligono=inicial.geometry.iloc[0],cant=23,X=-ancho+30,Y=-20))
+        clones=clonar_poligonos(poligono=inicial.geometry.iloc[0],cant=23,X=ancho,Y=0)
+        clones.extend(clonar_poligonos(poligono=inicial.geometry.iloc[0],cant=23,X=-ancho,Y=0))
+        clones.append(inicial.geometry.iloc[0])
+        copia = clones.copy()
+        for c in copia:
+            #clones.extend(clonar_poligonos(poligono=c,cant=15,X=-30,Y=(1.333*alto)-20))
+            #clones.extend(clonar_poligonos(poligono=c,cant=15,X=30,Y=(-1.333*alto)+20))
+            clones.extend(clonar_poligonos(poligono=c,cant=15,X=0,Y=alto*1.333))
+            clones.extend(clonar_poligonos(poligono=c,cant=15,X=0,Y=-alto*1.333))
+        clonesDF = geo.GeoDataFrame(geometry=clones,crs=CRS)
+        join=base.sjoin(clonesDF,how="inner",lsuffix="_caller",rsuffix="_other")         
+        join=join.dissolve(by="index__other",aggfunc="sum",method="unary")
+        shp([join,"join"])    
+        for j in join.geometry:
+            Hexagonos.append(genHexa(j))
+    return geo.GeoDataFrame(geometry=Hexagonos,crs=CRS)
     
+
+def obtenerPobTot(base,HexagonosDF):
+    baseClip = base.copy()
+    areaBase = base.iloc[0].geometry.area
+    HexagonosDF["POBTOT"] = 0
+    for i,v in HexagonosDF.iterrows():
+        if v.geometry is not None:
+            clip = baseClip.clip(v.geometry)
+            clip["area"] = clip.geometry.area
+            pob_total = 0 
+            for j,c in clip.iterrows():
+                if c.geometry.geom_type == "Polygon":
+                    if (areaBase*0.95) < c.geometry.area < (areaBase*1.05):
+                        pob_total += c["POBTOT"]
+                    else:
+                        pob_total += c["POBTOT"]*0.5
+            HexagonosDF.loc[i,"POBTOT"] = pob_total    
+    shp([HexagonosDF,"HexagonosDF"])
+    shp([baseClip,"baseClip"])
+
+
+
 def main(input):
     base = geo.read_file(input,columns=["POBTOT","geometry"])
     base = base.to_crs(6372)
@@ -64,57 +118,8 @@ def main(input):
     centroDF = geo.GeoDataFrame(geometry=centroMain,crs=CRS)
     shp([centroDF,"centroDF"])
 
-    _tmp=base.copy()
-    Hexagonos=[]
-    for cenM in centroMain:
-        base = _tmp.copy()
-        base["distancia"] = base["geometry"].distance(cenM)
-        base_ordenada = base.sort_values(by="distancia")
-        vecinos = base_ordenada.head(6)
-        inicial = vecinos.dissolve(by="vtx")
-        ancho = float(inicial.geometry.bounds.maxx-inicial.geometry.bounds.minx)
-        alto = float(inicial.geometry.bounds.maxy-inicial.geometry.bounds.miny)
-        inicial = inicial.buffer(ancho/-8)
-        #clones=clonar_poligonos(poligono=inicial.geometry.iloc[0],cant=23,X=ancho-30,Y=20)
-        #clones.extend(clonar_poligonos(poligono=inicial.geometry.iloc[0],cant=23,X=-ancho+30,Y=-20))
-        clones=clonar_poligonos(poligono=inicial.geometry.iloc[0],cant=23,X=ancho,Y=0)
-        clones.extend(clonar_poligonos(poligono=inicial.geometry.iloc[0],cant=23,X=-ancho,Y=0))
-        clones.append(inicial.geometry.iloc[0])
-        copia = clones.copy()
-        for c in copia:
-            #clones.extend(clonar_poligonos(poligono=c,cant=15,X=-30,Y=(1.333*alto)-20))
-            #clones.extend(clonar_poligonos(poligono=c,cant=15,X=30,Y=(-1.333*alto)+20))
-            clones.extend(clonar_poligonos(poligono=c,cant=15,X=0,Y=alto*1.333))
-            clones.extend(clonar_poligonos(poligono=c,cant=15,X=0,Y=-alto*1.333))
-        clonesDF = geo.GeoDataFrame(geometry=clones,crs=CRS)
-        join=base.sjoin(clonesDF,how="inner",lsuffix="_caller",rsuffix="_other")         
-        join=join.dissolve(by="index__other",aggfunc="sum",method="unary")
-        shp([join,"join"])    
-        for j in join.geometry:
-            Hexagonos.append(genHexa(j))
-
-    HexagonosDF = geo.GeoDataFrame(geometry=Hexagonos,crs=CRS)
-
-
-
-    baseClip = base.copy()
-    areaBase = base.iloc[0].geometry.area
-    HexagonosDF["POBTOT"] = 0
-    for i,v in HexagonosDF.iterrows():
-        if v.geometry is not None:
-            clip = baseClip.clip(v.geometry)
-            clip["area"] = clip.geometry.area
-            pob_total = 0 
-            for j,c in clip.iterrows():
-                if c.geometry.geom_type == "Polygon":
-                    if (areaBase*0.95) < c.geometry.area < (areaBase*1.05):
-                        pob_total += c["POBTOT"]
-                    else:
-                        pob_total += c["POBTOT"]*0.5
-            HexagonosDF.loc[i,"POBTOT"] = pob_total    
-    shp([HexagonosDF,"HexagonosDF"])
-    shp([baseClip,"baseClip"])
-
+    HexagonosDF = agrupaTeselas(base,centroMain)
+    obtenerPobTot(base,HexagonosDF)
 
     WebMAP(datos=["salida/baseClip.shp","salida/HexagonosDF.shp","salida/centroDF.shp"],tipos=["POLYGON","POLYGON","POINT"],names=["Clip","Hexagonos","Centroide"],estilo=[dict(fillColor="#0000FF",color="black"),dict(fillColor="red",color="black"),dict(stroke=True,fillColor="#0000FF",color="#000000",fillOpacity=0.5,weight=1)],web=1)
 
